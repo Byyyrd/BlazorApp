@@ -7,7 +7,23 @@
 
 <PageTitle>Hallo Welty</PageTitle>
 
-<p> 
+
+@if (!minimal)
+{
+    <p>
+        <label>
+            Write Here:
+            <input @bind="Word" @bind:event = "oninput" />
+        </label>
+    </p>
+
+}
+<h1>Schach.Kolhoff : @Word
+<button class="btn btn-primary" @onclick="readData">Querry Data</button>
+<button class="btn btn-primary" @onclick="setup">ResetBoard</button>
+    <button class="btn btn-primary" @onclick="changeLayout">Change Layout</button>
+</h1>
+<p>
     <label>
         From
         <input @bind="From" />
@@ -16,15 +32,6 @@
     </label>
     <button class="btn btn-primary" @onclick="insertData">Insert Data</button>
 </p>
-<p>
-    <label>
-        Write Here:
-        <input @bind="Word" @bind:event = "oninput" />
-    </label>
-</p>
-<h1>Schach.Kolhoff : @Word</h1>
-<button class="btn btn-primary" @onclick="readData">Querry Data</button>
-<button class="btn btn-primary" @onclick="setup">ResetBoard</button>
 
 @if (squares == null)
 {
@@ -54,10 +61,7 @@ else
         </tbody>
     </table>*/
     <br />
-    <br />
-    <button class="btn btn-primary" @onclick="changeLayout">Change Layout</button>
-    <br />
-    <svg width="800" height="800" style="position: absolute; z-index: 2;" 
+    <svg width="@DataService.SquareSize*8" height="@DataService.SquareSize*8" style="position: absolute; z-index: 2;"
      @onpointerdown=PointerDown @onpointerdown:preventDefault
      @onpointerup=PointerUp @onpointerup:preventDefault
      @onpointermove=PointerMove @onpointermove:preventDefault 
@@ -101,7 +105,13 @@ else
                 color = "0,255,0";
             }
             <rect x = "@square.X" y = "@square.Y" width="@DataService.SquareSize" height="@DataService.SquareSize" style="fill:rgb(@color)" />
-            <image href="images/Pieces.png" x="@square.X" y="@square.Y" width="@DataService.SquareSize" height="@DataService.SquareSize" />
+            @if(@square.Piece != "nn" && !@square.Piece.StartsWith("n") && !square.Piece.EndsWith("n"))
+            {
+                string imagePath = "images/" + @square.Piece + ".png";
+                imagePath = imagePath.Replace(" ", "");
+                <image href="@imagePath" x="@square.X" y="@square.Y" width="@DataService.SquareSize" height="@DataService.SquareSize" />
+            }
+            
         }
     </svg>
     
@@ -116,6 +126,7 @@ else
     private string Word { get; set; } = "";
     private string color = "255,0,255";
     private bool jul = true;
+    private bool minimal = true;
     //Reset and get Board and on visit
     protected override async Task OnInitializedAsync()
     {
@@ -129,7 +140,7 @@ else
     //Insert new move
     private async void insertData()
     {
-        DataService.MovePiece("pawn", 1);
+        DataService.MovePiece(From, To);
         squares = await DataService.GetBoardAsync();
     }
     //Read board data from database

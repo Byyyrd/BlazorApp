@@ -1,5 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.Identity.Client;
+using Microsoft.IdentityModel.Tokens;
+using System.IO.Pipelines;
 using System.Text;
 
 namespace BlazorStack.Data
@@ -7,7 +9,7 @@ namespace BlazorStack.Data
 
     public class BoardDataService
     {
-        private int squareSize = 100;
+        private int squareSize = 80;
         public int SquareSize { get { return squareSize; } }
         private Square[] squares = new Square[64];
         private SqlConnection cnn;
@@ -28,9 +30,9 @@ namespace BlazorStack.Data
         {
             Setup();
         }
-        public void MovePiece(string Piece, int ID)
+        public void MovePiece(string From, string To)
         {
-            UpdateData(Piece, ID);
+            MoveData(From, To);
         }
         private void Setup()
         {
@@ -53,9 +55,7 @@ namespace BlazorStack.Data
                 {
                     j++;
                 }
-                Console.WriteLine(squares[i].ToString());
             }
-
             cnn = new SqlConnection(connectionString);
             cnn.Open();
             SqlCommand command;
@@ -92,6 +92,58 @@ namespace BlazorStack.Data
                 i++;
             }
             cnn.Close();
+        }
+        private int ChessPositionToIndex(string chessPoition)
+        {
+            int index = 0;
+            char[] chars = chessPoition.ToCharArray();
+            switch (chars[0])
+            {
+                case 'a': index = 1;break;
+                case 'b': index = 2;break;
+                case 'c': index = 3;break;
+                case 'd': index = 4;break;
+                case 'e': index = 5;break;
+                case 'f': index = 6;break;
+                case 'g': index = 7;break;
+                case 'h': index = 8;break;
+            }
+            //make a8 a index of 1
+            return 64 - ((int)Char.GetNumericValue(chars[1]) * 8) + index;
+        }
+        private void MoveData(string from,string to)
+        {
+            int indexFrom = ChessPositionToIndex(from);
+            int indexTo   = ChessPositionToIndex(to);
+            Console.WriteLine($"From: {indexFrom} To: {indexTo}");
+            string piece = "n";
+            string color = "n";
+
+            cnn = new SqlConnection(connectionString);
+            cnn.Open();
+            SqlCommand command;
+            String sql = $"USE [julibank] SELECT * FROM Board";
+            command = new SqlCommand(sql, cnn);
+            SqlDataReader reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                if (reader.GetInt32(0) == indexFrom)
+                {
+                    color = reader.GetString(1);
+                    piece = reader.GetString(2);
+                }
+            }
+            cnn.Close();
+            if (!color.Equals("n") && !piece.Equals("n"))
+            {
+                cnn = new SqlConnection(connectionString);
+                cnn.Open();
+                sql = $"USE [julibank] UPDATE Board SET Color = '{color}',Piece = '{piece}' WHERE ID = {indexTo} UPDATE Board SET Color = 'n',Piece = 'n' WHERE ID = {indexFrom}";
+                command = new SqlCommand(sql, cnn);
+                reader = command.ExecuteReader();
+                cnn.Close();
+            }
+            
         }
         private void UpdateData(string Piece, int ID)
         {
