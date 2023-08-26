@@ -1,0 +1,148 @@
+@page "/chess"
+@using BlazorStack.Data;
+@using Microsoft.Data.SqlClient;
+@using Microsoft.EntityFrameworkCore.Metadata.Internal;
+@using System.Text;
+@inject BoardDataService DataService
+
+<PageTitle>Hallo Welty</PageTitle>
+
+<p> 
+    <label>
+        From
+        <input @bind="From" />
+        To
+        <input @bind="To" />
+    </label>
+    <button class="btn btn-primary" @onclick="insertData">Insert Data</button>
+</p>
+<p>
+    <label>
+        Write Here:
+        <input @bind="Word" @bind:event = "oninput" />
+    </label>
+</p>
+<h1>Schach.Kolhoff : @Word</h1>
+<button class="btn btn-primary" @onclick="readData">Querry Data</button>
+<button class="btn btn-primary" @onclick="setup">ResetBoard</button>
+
+@if (squares == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    /*<table class="table">
+        <thead>
+            <tr>
+                <th>X</th>
+                <th>Y</th>
+                <th>Square Color</th>
+                <th>Piece</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var square in squares)
+            {
+                <tr>
+                    <td>@square.X</td>
+                    <td>@square.Y</td>
+                    <td>@square.SquareColor</td>
+                    <td>@square.Piece</td>
+                </tr>
+            }
+        </tbody>
+    </table>*/
+    <br />
+    <br />
+    <button class="btn btn-primary" @onclick="changeLayout">Change Layout</button>
+    <br />
+    <svg width="800" height="800" style="position: absolute; z-index: 2;" 
+     @onpointerdown=PointerDown @onpointerdown:preventDefault
+     @onpointerup=PointerUp @onpointerup:preventDefault
+     @onpointermove=PointerMove @onpointermove:preventDefault 
+     >
+        @foreach(Square square in squares)
+        {
+
+            if(square.SquareColor == "w")
+            {
+                if (jul)
+                {
+                   //JulColor
+                color = "160,124,94"; 
+                }
+                else
+                {
+                    //PapColor
+                    color = "189,181,169";
+                }
+                
+                //White
+                //color = "255,255,255";
+            }else if(square.SquareColor == "b")
+            {
+                if (jul)
+                {
+                   //JulColor
+                   color = "103,51,20";
+                }
+                else
+                {
+                    //PapColor
+                    color = "160,124,94";
+                }
+
+                //BLack
+                //color = "0,0,0";
+            }
+            else if(square.SquareColor == "n")
+            {
+                color = "0,255,0";
+            }
+            <rect x = "@square.X" y = "@square.Y" width="@DataService.SquareSize" height="@DataService.SquareSize" style="fill:rgb(@color)" />
+            <image href="images/Pieces.png" x="@square.X" y="@square.Y" width="@DataService.SquareSize" height="@DataService.SquareSize" />
+        }
+    </svg>
+    
+
+}
+
+
+@code {
+    private Square[]? squares;
+    private string From { get; set; } = "";
+    private string To { get; set; } = "";
+    private string Word { get; set; } = "";
+    private string color = "255,0,255";
+    private bool jul = true;
+    //Reset and get Board and on visit
+    protected override async Task OnInitializedAsync()
+    {
+        squares = await DataService.GetInitialBoardAsync();
+    }
+    //Reset and get Board
+    private async void setup()
+    {
+        squares = await DataService.GetInitialBoardAsync();
+    }
+    //Insert new move
+    private async void insertData()
+    {
+        DataService.MovePiece("pawn", 1);
+        squares = await DataService.GetBoardAsync();
+    }
+    //Read board data from database
+    private async void readData()
+    {
+        squares = await DataService.GetBoardAsync();
+    }
+    Task PointerDown(PointerEventArgs e) { return Task.CompletedTask; }
+    Task PointerUp(PointerEventArgs e) { return Task.CompletedTask; }
+    Task PointerMove(PointerEventArgs e) { return Task.CompletedTask; }
+    public void changeLayout()
+    {
+        jul = !jul;
+    }
+
+}
