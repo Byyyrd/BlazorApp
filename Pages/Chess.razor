@@ -105,13 +105,20 @@ else
                 color = "0,255,0";
             }
             <rect x = "@square.X" y = "@square.Y" width="@DataService.SquareSize" height="@DataService.SquareSize" style="fill:rgb(@color)" />
-            @if(@square.Piece != "nn" && !@square.Piece.StartsWith("n") && !square.Piece.EndsWith("n"))
+            @if(@square.Piece != "nn" && !@square.Piece.StartsWith("n") && !@square.Piece.EndsWith("n"))
             {
                 string imagePath = "images/" + @square.Piece + ".png";
                 imagePath = imagePath.Replace(" ", "");
                 <image href="@imagePath" x="@square.X" y="@square.Y" width="@DataService.SquareSize" height="@DataService.SquareSize" />
             }
             
+        }
+        @if(holdingPiece != null && holdingPiece != "nn" && !holdingPiece.StartsWith("n") && !holdingPiece.EndsWith("n") && holdingPiece != ""){
+            string imagePath = "images/" + holdingPiece + ".png";
+            imagePath = imagePath.Replace(" ", "");
+            int xPos = mouseX - @DataService.SquareSize/2;
+            int yPos = mouseY - @DataService.SquareSize/2;
+            <image href="@imagePath" x="@xPos" y="@yPos" width="@DataService.SquareSize" height="@DataService.SquareSize" />
         }
     </svg>
     
@@ -127,10 +134,31 @@ else
     private string color = "255,0,255";
     private bool jul = true;
     private bool minimal = true;
+    private Timer timer;
+    private string holdingPiece = "";
+    private int mouseX;
+    private int mouseY;
+
+    public void Dispose()
+    {
+        timer?.Dispose();
+    }
+
     //Reset and get Board and on visit
     protected override async Task OnInitializedAsync()
     {
-        squares = await DataService.GetInitialBoardAsync();
+        squares = await DataService.GetBoardAsync();
+        var startTimeSpan = TimeSpan.Zero;
+        var periodTimeSpan = TimeSpan.FromSeconds(2);
+
+        var timer = new System.Threading.Timer((e) =>
+       {
+           updateData();
+       }, null, startTimeSpan, periodTimeSpan);
+    }
+    private async void updateData()
+    {
+        squares = await DataService.GetBoardAsync();
     }
     //Reset and get Board
     private async void setup()
@@ -148,9 +176,47 @@ else
     {
         squares = await DataService.GetBoardAsync();
     }
-    Task PointerDown(PointerEventArgs e) { return Task.CompletedTask; }
-    Task PointerUp(PointerEventArgs e) { return Task.CompletedTask; }
-    Task PointerMove(PointerEventArgs e) { return Task.CompletedTask; }
+    Task PointerDown(PointerEventArgs e) { 
+        DataService.mouseDown(e);   
+        mouseX = (int)e.OffsetX;
+        mouseY = (int)e.OffsetY;
+        if (DataService.HoldingSquare != null)
+        {
+            holdingPiece = DataService.HoldingSquare.Piece;
+        }
+        else
+        {
+            holdingPiece = "nn";
+        }
+        readData();
+        return Task.CompletedTask;
+    }
+    Task PointerUp(PointerEventArgs e) {
+        DataService.mouseUp(e);
+        mouseX = (int)e.OffsetX;
+        mouseY = (int)e.OffsetY;
+        if (DataService.HoldingSquare != null)
+        {
+            holdingPiece = DataService.HoldingSquare.Piece;
+        }
+        else
+        {
+            holdingPiece = "nn";
+        }
+        return Task.CompletedTask; }
+    Task PointerMove(PointerEventArgs e) {
+        mouseX = (int) e.OffsetX;
+        mouseY = (int) e.OffsetY;
+        if (DataService.HoldingSquare != null)
+        {
+            holdingPiece = DataService.HoldingSquare.Piece;
+        }
+        else
+        {
+            holdingPiece = "nn";
+        }
+        return Task.CompletedTask;
+    }
     public void changeLayout()
     {
         jul = !jul;

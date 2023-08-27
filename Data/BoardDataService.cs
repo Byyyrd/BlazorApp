@@ -1,4 +1,6 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Identity.Client;
 using Microsoft.IdentityModel.Tokens;
 using System.IO.Pipelines;
@@ -13,6 +15,9 @@ namespace BlazorStack.Data
         public int SquareSize { get { return squareSize; } }
         private Square[] squares = new Square[64];
         private SqlConnection cnn;
+        private Square holdingSquare;
+        public Square HoldingSquare { get { return holdingSquare; } }
+        private Square targetSquare;
         private string connectionString = "Data Source = DESKTOP-UKI1896\\SQLEXPRESS; Integrated Security = True; Connect Timeout = 30; Encrypt = False; Trust Server Certificate = False; Application Intent = ReadWrite; Multi Subnet Failover = False";
 
         public Task<Square[]> GetBoardAsync()
@@ -32,7 +37,124 @@ namespace BlazorStack.Data
         }
         public void MovePiece(string From, string To)
         {
-            MoveData(From, To);
+            MoveDataByString(From, To);
+        }
+        public void mouseDown(PointerEventArgs e)
+        {
+            int mouseX = (int)e.OffsetX;
+            int mouseY = (int)e.OffsetY;
+            foreach(Square square in squares)
+            {
+                if (holdingSquare == null)
+                {
+                    if (inRectangle(square.X, square.Y, squareSize, squareSize, mouseX, mouseY) && square.Piece != "nn" && !square.Piece.StartsWith("n") && !square.Piece.EndsWith("n"))
+                    {
+                        holdingSquare = square;
+                    }
+                }
+                else
+                {
+                    if (inRectangle(square.X, square.Y, squareSize, squareSize, mouseX, mouseY))
+                    {
+                        targetSquare = square;
+                        int holdingSquareIndex = holdingSquare.X / squareSize + (holdingSquare.Y / squareSize) * 8 + 1;
+                        int targetSqareIndex = targetSquare.X / squareSize + (targetSquare.Y / squareSize) * 8 + 1;
+                        if (IsViableMove(holdingSquare.Piece, holdingSquareIndex, targetSqareIndex) && holdingSquare != targetSquare && !targetSquare.Piece.StartsWith(holdingSquare.Piece[0]))
+                        {
+                            MoveDataByIndex(holdingSquareIndex, targetSqareIndex);
+                        }
+                        
+                        holdingSquare = null;
+                        targetSquare = null;
+                        
+                    }
+                }
+                
+            }
+        }
+        private bool IsViableMove(string Piece,int indexFrom,int indexTo)
+        {
+            if (Piece.Contains("knight")) { return checkKnightMove(indexFrom,indexTo); }
+            if (Piece.Contains("rook"))   { return checkRookMove(indexFrom, indexTo); }
+            if (Piece.Contains("bishop")) { return checkBishopMove(indexFrom, indexTo); }
+            if (Piece.Contains("queen"))  { return checkQueenMove(indexFrom, indexTo); }
+            if (Piece.Contains("king"))   { return checkKingMove(indexFrom, indexTo); }
+            if (Piece.Contains("bpawn"))  { return checkBlackPawnMove(indexFrom, indexTo); }
+            if (Piece.Contains("wpawn"))  { return checkWhitePawnMove(indexFrom, indexTo); }
+
+            return false;
+        }
+        private bool checkKnightMove(int from,int to)
+        {
+            int distance = Math.Abs(to - from);
+            if (distance % 15 == 0 || distance % 17 == 0 || distance % 6 == 0 || distance % 10 == 0)
+                return true;
+            return false;
+        }
+        private bool checkRookMove(int from, int to)
+        {
+            //moves on same rank
+            if (((from - 1) / 8) == ((to - 1) / 8))
+                return true;
+            //move on same file
+            if (Math.Abs(to - from) % 8 == 0)
+                return true;
+
+            return false;
+        }
+        private bool checkBishopMove(int from,int to)
+        {
+            if (Math.Abs(from - to) % 7 == 0 || Math.Abs(from - to) % 9 == 0)
+                return true;
+
+            return false;
+        }
+        private bool checkQueenMove(int from, int to)
+        {
+            return (checkRookMove(from,to) || checkBishopMove(from,to));
+        }
+        private bool checkKingMove(int from, int to)
+        {
+            int distance = Math.Abs(to - from);
+            if (distance == 1 || (distance > 6 && distance < 10))
+                return true;
+            return false;
+        }
+        private bool checkBlackPawnMove(int from,int to)
+        {
+            //normal moves
+            if (to - from == 8 || (to - from == 16 && (from-1) / 8 == 1))
+                return true;
+            //capture a piece
+            if(targetSquare.Piece.StartsWith("w") && (to - from == 7 || to - from == 9))
+                return true;
+            //en passant
+            return false;
+        }
+        private bool checkWhitePawnMove(int from, int to)
+        {
+            //normal moves
+            if (to - from == -8 || (to - from == -16 && (from - 1) / 8 == 6))
+                return true;
+            //capture a piece
+            if (targetSquare.Piece.StartsWith("b") && (to - from == -7 || to - from == -9))
+                return true;
+            //en passant
+            return false;
+        }
+        
+        
+        public void mouseMoved(PointerEventArgs e)
+        {
+            
+        }
+        public bool inRectangle(int x,int y,int width, int height,int pX, int pY)
+        {
+            return pX > x && pY > y && pX < x + width && pY < y + height;
+        }
+        public void mouseUp(PointerEventArgs e)
+        {
+
         }
         private void Setup()
         {
@@ -78,6 +200,10 @@ namespace BlazorStack.Data
         }
         private void ReadData()
         {
+            if (squares[0] == null)
+            {
+                Setup();
+            }
             cnn = new SqlConnection(connectionString);
             cnn.Open();
             SqlCommand command;
@@ -111,11 +237,16 @@ namespace BlazorStack.Data
             //make a8 a index of 1
             return 64 - ((int)Char.GetNumericValue(chars[1]) * 8) + index;
         }
-        private void MoveData(string from,string to)
+        private void MoveDataByString(string from,string to)
         {
             int indexFrom = ChessPositionToIndex(from);
             int indexTo   = ChessPositionToIndex(to);
-            Console.WriteLine($"From: {indexFrom} To: {indexTo}");
+
+            MoveDataByIndex(indexFrom, indexTo);
+            
+        }
+        public void MoveDataByIndex(int indexFrom, int indexTo)
+        {
             string piece = "n";
             string color = "n";
 
@@ -143,7 +274,6 @@ namespace BlazorStack.Data
                 reader = command.ExecuteReader();
                 cnn.Close();
             }
-            
         }
         private void UpdateData(string Piece, int ID)
         {
