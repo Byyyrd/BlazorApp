@@ -1,0 +1,68 @@
+﻿@page "/chat"
+@using BlazorStack.Data;
+@using Microsoft.AspNetCore.Html;
+@inject ChatDataService ChatData
+
+<h3>Chat</h3>
+<div style="display: inline-block;height:600px;max-width:800px;position: relative;left: @positionX;flex-direction: column-reverse;overflow-y:scroll;overflow-wrap:break-word;display: flex;">
+	<p style="white-space: pre-wrap;width: 100%">@_chatLog <span style="color:green">@lastLine </span> </p>
+</div>
+
+<div style="position: relative;left: @positionX">
+    <input @bind="Message" @bind:event ="oninput"  @onkeypress ="SendMessage"/>
+	@* <button class="btn btn-primary" @onclick="SendMessage">Send Message</button> *@
+</div>
+
+
+
+@code {
+    [Parameter]
+    public string positionX { get; set; } = "auto";
+    private string? _chatLog;
+    private string? Message;
+    private Timer? timer;
+    private string lastLine = "";
+
+
+    public void Dispose()
+    {
+        timer?.Dispose();
+    }
+
+    //Reset and get Board and on visit
+    protected override async Task OnInitializedAsync()
+    {
+        _chatLog = await ChatData.GetChatAsync();
+        var startTimeSpan = TimeSpan.Zero;
+        var periodTimeSpan = TimeSpan.FromSeconds(1);
+
+        timer = new System.Threading.Timer((e) =>
+        {
+            updateData();
+            InvokeAsync(() =>
+            {
+                StateHasChanged();
+            });
+
+        }, null, startTimeSpan, periodTimeSpan);
+    }
+    private async void updateData()
+    {
+        _chatLog = await ChatData.GetChatAsync();
+        lastLine = await ChatData.GetLastLine();
+        await InvokeAsync(() =>
+            {
+                StateHasChanged();
+            });
+    } 
+    private void SendMessage(KeyboardEventArgs e)
+    {
+        if (e.Code == "Enter")
+        {
+            ChatData.SendMessage(Message);
+            Message = "";
+        }
+        updateData();
+    }
+
+}

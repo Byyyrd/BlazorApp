@@ -21,5 +21,8 @@
 
 
         public override string ToString() => $"({X},{Y},{SquareColor},{Piece})";
+        public int Index() => X / BoardDataService.squareSize + Y / BoardDataService.squareSize * 8 + 1;
+        public int Rank() => (Index() - 1)/8;
+        public int File() => (X / BoardDataService.squareSize)+ 1;
     }
 }

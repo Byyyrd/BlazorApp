@@ -1,9 +1,6 @@
-﻿using Microsoft.AspNetCore.Components.Web;
+﻿using BlazorStack.Controller;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore.Query;
-using Microsoft.Identity.Client;
-using Microsoft.IdentityModel.Tokens;
-using System.IO.Pipelines;
 using System.Text;
 
 namespace BlazorStack.Data
@@ -11,13 +8,9 @@ namespace BlazorStack.Data
 
     public class BoardDataService
     {
-        private int squareSize = 80;
+        public static int squareSize = 80;
         public int SquareSize { get { return squareSize; } }
         private Square[] squares = new Square[64];
-        private SqlConnection cnn;
-        private Square holdingSquare;
-        public Square HoldingSquare { get { return holdingSquare; } }
-        private Square targetSquare;
         private string connectionString = "Data Source = DESKTOP-UKI1896\\SQLEXPRESS; Integrated Security = True; Connect Timeout = 30; Encrypt = False; Trust Server Certificate = False; Application Intent = ReadWrite; Multi Subnet Failover = False";
 
         public Task<Square[]> GetBoardAsync()
@@ -39,118 +32,12 @@ namespace BlazorStack.Data
         {
             MoveDataByString(From, To);
         }
-        public void mouseDown(PointerEventArgs e)
-        {
-            int mouseX = (int)e.OffsetX;
-            int mouseY = (int)e.OffsetY;
-            foreach(Square square in squares)
-            {
-                if (holdingSquare == null)
-                {
-                    if (inRectangle(square.X, square.Y, squareSize, squareSize, mouseX, mouseY) && square.Piece != "nn" && !square.Piece.StartsWith("n") && !square.Piece.EndsWith("n"))
-                    {
-                        holdingSquare = square;
-                    }
-                }
-                else
-                {
-                    if (inRectangle(square.X, square.Y, squareSize, squareSize, mouseX, mouseY))
-                    {
-                        targetSquare = square;
-                        int holdingSquareIndex = holdingSquare.X / squareSize + (holdingSquare.Y / squareSize) * 8 + 1;
-                        int targetSqareIndex = targetSquare.X / squareSize + (targetSquare.Y / squareSize) * 8 + 1;
-                        if (IsViableMove(holdingSquare.Piece, holdingSquareIndex, targetSqareIndex) && holdingSquare != targetSquare && !targetSquare.Piece.StartsWith(holdingSquare.Piece[0]))
-                        {
-                            MoveDataByIndex(holdingSquareIndex, targetSqareIndex);
-                        }
-                        
-                        holdingSquare = null;
-                        targetSquare = null;
-                        
-                    }
-                }
-                
-            }
-        }
-        private bool IsViableMove(string Piece,int indexFrom,int indexTo)
-        {
-            if (Piece.Contains("knight")) { return checkKnightMove(indexFrom,indexTo); }
-            if (Piece.Contains("rook"))   { return checkRookMove(indexFrom, indexTo); }
-            if (Piece.Contains("bishop")) { return checkBishopMove(indexFrom, indexTo); }
-            if (Piece.Contains("queen"))  { return checkQueenMove(indexFrom, indexTo); }
-            if (Piece.Contains("king"))   { return checkKingMove(indexFrom, indexTo); }
-            if (Piece.Contains("bpawn"))  { return checkBlackPawnMove(indexFrom, indexTo); }
-            if (Piece.Contains("wpawn"))  { return checkWhitePawnMove(indexFrom, indexTo); }
-
-            return false;
-        }
-        private bool checkKnightMove(int from,int to)
-        {
-            int distance = Math.Abs(to - from);
-            if (distance % 15 == 0 || distance % 17 == 0 || distance % 6 == 0 || distance % 10 == 0)
-                return true;
-            return false;
-        }
-        private bool checkRookMove(int from, int to)
-        {
-            //moves on same rank
-            if (((from - 1) / 8) == ((to - 1) / 8))
-                return true;
-            //move on same file
-            if (Math.Abs(to - from) % 8 == 0)
-                return true;
-
-            return false;
-        }
-        private bool checkBishopMove(int from,int to)
-        {
-            if (Math.Abs(from - to) % 7 == 0 || Math.Abs(from - to) % 9 == 0)
-                return true;
-
-            return false;
-        }
-        private bool checkQueenMove(int from, int to)
-        {
-            return (checkRookMove(from,to) || checkBishopMove(from,to));
-        }
-        private bool checkKingMove(int from, int to)
-        {
-            int distance = Math.Abs(to - from);
-            if (distance == 1 || (distance > 6 && distance < 10))
-                return true;
-            return false;
-        }
-        private bool checkBlackPawnMove(int from,int to)
-        {
-            //normal moves
-            if (to - from == 8 || (to - from == 16 && (from-1) / 8 == 1))
-                return true;
-            //capture a piece
-            if(targetSquare.Piece.StartsWith("w") && (to - from == 7 || to - from == 9))
-                return true;
-            //en passant
-            return false;
-        }
-        private bool checkWhitePawnMove(int from, int to)
-        {
-            //normal moves
-            if (to - from == -8 || (to - from == -16 && (from - 1) / 8 == 6))
-                return true;
-            //capture a piece
-            if (targetSquare.Piece.StartsWith("b") && (to - from == -7 || to - from == -9))
-                return true;
-            //en passant
-            return false;
-        }
         
+
         
         public void mouseMoved(PointerEventArgs e)
         {
             
-        }
-        public bool inRectangle(int x,int y,int width, int height,int pX, int pY)
-        {
-            return pX > x && pY > y && pX < x + width && pY < y + height;
         }
         public void mouseUp(PointerEventArgs e)
         {
@@ -178,7 +65,7 @@ namespace BlazorStack.Data
                     j++;
                 }
             }
-            cnn = new SqlConnection(connectionString);
+            SqlConnection cnn = new SqlConnection(connectionString);
             cnn.Open();
             SqlCommand command;
             //Reset Database to default Board
@@ -189,7 +76,7 @@ namespace BlazorStack.Data
         }
         private void Fill()
         {
-            cnn = new SqlConnection(connectionString);
+            SqlConnection cnn = new SqlConnection(connectionString);
             cnn.Open();
             SqlCommand command;
             //Fill Database with DefaultValues
@@ -204,7 +91,7 @@ namespace BlazorStack.Data
             {
                 Setup();
             }
-            cnn = new SqlConnection(connectionString);
+            SqlConnection cnn = new SqlConnection(connectionString);
             cnn.Open();
             SqlCommand command;
             string sql = "USE [julibank] SELECT * FROM Board";
@@ -214,7 +101,8 @@ namespace BlazorStack.Data
             int i = 0;
             while (reader.Read())
             {
-                squares[i].Piece = reader.GetString(1) + reader.GetString(2);
+                string piece = reader.GetString(1) + reader.GetString(2);
+                squares[i].Piece = piece.Replace(" ","");
                 i++;
             }
             cnn.Close();
@@ -250,7 +138,7 @@ namespace BlazorStack.Data
             string piece = "n";
             string color = "n";
 
-            cnn = new SqlConnection(connectionString);
+            SqlConnection cnn = new SqlConnection(connectionString);
             cnn.Open();
             SqlCommand command;
             String sql = $"USE [julibank] SELECT * FROM Board";
@@ -277,13 +165,12 @@ namespace BlazorStack.Data
         }
         private void UpdateData(string Piece, int ID)
         {
-            cnn = new SqlConnection(connectionString);
+            SqlConnection cnn = new SqlConnection(connectionString);
             cnn.Open();
             SqlCommand command;
             String sql = $"USE [julibank] UPDATE Board SET Piece = '{Piece}' WHERE ID = {ID}";
             command = new SqlCommand(sql, cnn);
             SqlDataReader reader = command.ExecuteReader();
-
             cnn.Close();
         }
         private StringBuilder BuildBoardResetString()

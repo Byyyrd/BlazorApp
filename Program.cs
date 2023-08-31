@@ -7,6 +7,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddSingleton<WeatherForecastService>();
 builder.Services.AddSingleton<BoardDataService>();
+builder.Services.AddSingleton<ChatDataService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

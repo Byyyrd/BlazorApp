@@ -1,4 +1,5 @@
 @page "/chess"
+@using BlazorStack.Controller;
 @using BlazorStack.Data;
 @using Microsoft.Data.SqlClient;
 @using Microsoft.EntityFrameworkCore.Metadata.Internal;
@@ -61,14 +62,13 @@ else
         </tbody>
     </table>*/
     <br />
-    <svg width="@DataService.SquareSize*8" height="@DataService.SquareSize*8" style="position: absolute; z-index: 2;"
+    <svg width="700" height="@DataService.SquareSize*8" style="position: absolute; z-index: 2;"
      @onpointerdown=PointerDown @onpointerdown:preventDefault
      @onpointerup=PointerUp @onpointerup:preventDefault
      @onpointermove=PointerMove @onpointermove:preventDefault 
      >
         @foreach(Square square in squares)
         {
-
             if(square.SquareColor == "w")
             {
                 if (jul)
@@ -105,7 +105,7 @@ else
                 color = "0,255,0";
             }
             <rect x = "@square.X" y = "@square.Y" width="@DataService.SquareSize" height="@DataService.SquareSize" style="fill:rgb(@color)" />
-            @if(@square.Piece != "nn" && !@square.Piece.StartsWith("n") && !@square.Piece.EndsWith("n"))
+            @if(@square.Piece != "nn" && !@square.Piece.StartsWith("n"))
             {
                 string imagePath = "images/" + @square.Piece + ".png";
                 imagePath = imagePath.Replace(" ", "");
@@ -113,14 +113,18 @@ else
             }
             
         }
-        @if(holdingPiece != null && holdingPiece != "nn" && !holdingPiece.StartsWith("n") && !holdingPiece.EndsWith("n") && holdingPiece != ""){
+        @if(holdingPiece != null && holdingPiece != "nn" && !holdingPiece.StartsWith("n") && holdingPiece != ""){
             string imagePath = "images/" + holdingPiece + ".png";
             imagePath = imagePath.Replace(" ", "");
             int xPos = mouseX - @DataService.SquareSize/2;
             int yPos = mouseY - @DataService.SquareSize/2;
             <image href="@imagePath" x="@xPos" y="@yPos" width="@DataService.SquareSize" height="@DataService.SquareSize" />
         }
+        
     </svg>
+    int xPosChat = @DataService.SquareSize * 9;
+    string posString = xPosChat + "px";
+    <Chat positionX="@posString" />
     
 
 }
@@ -134,10 +138,12 @@ else
     private string color = "255,0,255";
     private bool jul = true;
     private bool minimal = true;
-    private Timer timer;
+    private Timer? timer;
     private string holdingPiece = "";
     private int mouseX;
     private int mouseY;
+    public ChessController cc;
+
 
     public void Dispose()
     {
@@ -148,22 +154,33 @@ else
     protected override async Task OnInitializedAsync()
     {
         squares = await DataService.GetBoardAsync();
+        cc = new(DataService);
+        cc.Squares = squares;
+        cc.Reset();
         var startTimeSpan = TimeSpan.Zero;
-        var periodTimeSpan = TimeSpan.FromSeconds(2);
+        var periodTimeSpan = TimeSpan.FromSeconds(1);
 
-        var timer = new System.Threading.Timer((e) =>
-       {
-           updateData();
-       }, null, startTimeSpan, periodTimeSpan);
+        timer = new System.Threading.Timer((e) =>
+        {
+            updateData();
+            InvokeAsync(() =>
+        {
+            StateHasChanged();
+        });
+        }, null, startTimeSpan, periodTimeSpan);
     }
     private async void updateData()
     {
         squares = await DataService.GetBoardAsync();
+        cc.Squares = squares;
     }
     //Reset and get Board
     private async void setup()
     {
         squares = await DataService.GetInitialBoardAsync();
+        cc.Squares = squares;
+        cc.Reset();
+        cc.Ds = DataService;
     }
     //Insert new move
     private async void insertData()
@@ -177,12 +194,12 @@ else
         squares = await DataService.GetBoardAsync();
     }
     Task PointerDown(PointerEventArgs e) { 
-        DataService.mouseDown(e);   
+        cc.mouseDown(e);   
         mouseX = (int)e.OffsetX;
         mouseY = (int)e.OffsetY;
-        if (DataService.HoldingSquare != null)
+        if (cc.holdingSquare != null)
         {
-            holdingPiece = DataService.HoldingSquare.Piece;
+            holdingPiece = cc.holdingSquare.Piece;
         }
         else
         {
@@ -195,9 +212,9 @@ else
         DataService.mouseUp(e);
         mouseX = (int)e.OffsetX;
         mouseY = (int)e.OffsetY;
-        if (DataService.HoldingSquare != null)
+        if (cc.holdingSquare != null)
         {
-            holdingPiece = DataService.HoldingSquare.Piece;
+            holdingPiece = cc.holdingSquare.Piece;
         }
         else
         {
@@ -207,9 +224,9 @@ else
     Task PointerMove(PointerEventArgs e) {
         mouseX = (int) e.OffsetX;
         mouseY = (int) e.OffsetY;
-        if (DataService.HoldingSquare != null)
+        if (cc.holdingSquare != null)
         {
-            holdingPiece = DataService.HoldingSquare.Piece;
+            holdingPiece = cc.holdingSquare.Piece;
         }
         else
         {
