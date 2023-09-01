@@ -16,19 +16,77 @@ namespace BlazorStack.Controller
         }
         public bool IsViableMove(string Piece)
         {
-            CheckRochade(Squares);
             if (holdingSquare != null && targetSquare != null)
             {
-                int indexFrom = holdingSquare.X / BoardDataService.squareSize + (holdingSquare.Y / BoardDataService.squareSize) * 8 + 1;
-                int indexTo = targetSquare.X / BoardDataService.squareSize + (targetSquare.Y / BoardDataService.squareSize) * 8 + 1;
-                if (Piece.Contains("knight")) { return CheckKnightMove(indexFrom, indexTo); }
-                if (Piece.Contains("rook")) { return CheckRookMove(indexFrom, indexTo); }
-                if (Piece.Contains("bishop")) { return CheckBishopMove(indexFrom, indexTo); }
-                if (Piece.Contains("queen")) { return CheckQueenMove(indexFrom, indexTo); }
-                if (Piece.Contains("king")) { return CheckKingMove(indexFrom, indexTo); }
-                if (Piece.Contains("bpawn")) { return CheckBlackPawnMove(indexFrom, indexTo); }
-                if (Piece.Contains("wpawn")) { return CheckWhitePawnMove(indexFrom, indexTo); }
+                int indexFrom = holdingSquare.Index();
+                int indexTo = targetSquare.Index();
+                CheckRochade(Squares);
+                bool couldRochadeB = canRochadeB;
+                bool couldRochadeW = canRochadeW;
+                if (IsInCheck(Piece[0].ToString()))
+                {
+                    canRochadeB = false;
+                    canRochadeW = false;
+                    string toPiece = Squares[indexTo - 1].Piece;
+                    Squares[indexTo - 1].Piece = Squares[indexFrom - 1].Piece;
+                    Squares[indexFrom - 1].Piece = "nn";
+                    if (IsInCheck(Piece[0].ToString()))
+                    {
+                        Squares[indexFrom - 1].Piece = Squares[indexTo - 1].Piece;
+                        Squares[indexTo - 1].Piece = toPiece;
+                        canRochadeB = couldRochadeB;
+                        canRochadeW = couldRochadeW;
+                        return false;
+                    }
+                    Squares[indexFrom - 1].Piece = Squares[indexTo - 1].Piece;
+                    Squares[indexTo - 1].Piece = toPiece;
+                }
+                bool viableMove = IsViableMoveByIndex(Piece, indexFrom, indexTo);
+                canRochadeB = couldRochadeB;
+                canRochadeW = couldRochadeW;
+                return viableMove;
             }
+
+            return false;
+        }
+        private bool IsViableMoveByIndex(string Piece, int indexFrom,int indexTo)
+        {
+            if (Piece.Contains("knight")) { return CheckKnightMove(indexFrom, indexTo); }
+            if (Piece.Contains("rook")) { return CheckRookMove(Piece[0].ToString(), indexFrom, indexTo); }
+            if (Piece.Contains("bishop")) { return CheckBishopMove(Piece[0].ToString(), indexFrom, indexTo); }
+            if (Piece.Contains("queen")) { return CheckQueenMove(Piece[0].ToString(), indexFrom, indexTo); }
+            if (Piece.Contains("king")) { return CheckKingMove(Piece[0].ToString(),indexFrom, indexTo); }
+            if (Piece.Contains("bpawn")) { return CheckBlackPawnMove(indexFrom, indexTo); }
+            if (Piece.Contains("wpawn")) { return CheckWhitePawnMove(indexFrom, indexTo); }
+
+            return false;
+        }
+        public bool IsInCheck(string Color)
+        {
+            if (Color == "n") return false;
+            int kingPosition = 0;
+            string enemyColor = Color == "b" ? "w" : "b";
+            foreach (Square square in Squares)
+            {
+                if (square.Piece.Contains($"{Color}king"))
+                {
+                    kingPosition = square.Index();
+                }
+            }
+            if (kingPosition != 0)
+            {
+                foreach (Square square in Squares)
+                {
+                    if (square.Piece.StartsWith(enemyColor))
+                    {
+                        if(IsViableMoveByIndex(square.Piece, square.Index(), kingPosition)) {
+                            Console.WriteLine(square.Piece);
+                            return true; 
+                        }
+                    }
+                }
+            }
+            
 
             return false;
         }
@@ -47,18 +105,18 @@ namespace BlazorStack.Controller
         private bool CheckKnightMove(int from, int to)
         {
             int distance = Math.Abs(to - from);
-            if (distance % 15 == 0 || distance % 17 == 0 || distance % 6 == 0 || distance % 10 == 0)
+            if (distance == 15 || distance == 17 || distance == 6 || distance == 10)
                 return true;
             return false;
         }
-        private bool CheckRookMove(int from, int to)
+        private bool CheckRookMove(string Color,int from, int to)
         {
             //moves on same rank
-            if (IndexToRank(from) == IndexToRank(to) && !IsInterceptedByPieceOnRank(from, to))
+            if (IndexToRank(from) == IndexToRank(to) && !IsInterceptedByPieceOnRank(Color, from, to))
                 return true;
             
             //move on same file
-            if (Math.Abs(to - from) % 8 == 0 && !IsInterceptedByPieceOnFile(from,to))
+            if (Math.Abs(to - from) % 8 == 0 && !IsInterceptedByPieceOnFile(Color, from,to))
                 return true;
 
             return false;
@@ -72,14 +130,14 @@ namespace BlazorStack.Controller
         {
             return index - (IndexToRank(index) * 8);
         }
-        private bool IsInterceptedByPieceOnRank(int from,int to)
+        private bool IsInterceptedByPieceOnRank(string Color,int from,int to)
         {
             int Rank = IndexToRank(from);
             foreach (var square in Squares)
             {
                 if(square.Rank() == Rank && !square.Equals(holdingSquare))
                 {
-                    if (square.Piece.StartsWith(holdingSquare.Piece[0]) && ((to >= square.Index() && from < square.Index()) || (to <= square.Index() && from > square.Index())))
+                    if (square.Piece.StartsWith(Color) && ((to >= square.Index() && from < square.Index()) || (to <= square.Index() && from > square.Index())))
                     {
                         return true;
                     }
@@ -91,7 +149,7 @@ namespace BlazorStack.Controller
             }
             return false;
         }
-        private bool IsInterceptedByPieceOnFile(int from, int to)
+        private bool IsInterceptedByPieceOnFile(string Color,int from, int to)
         {
             int toRank = IndexToRank(to);
             int fromRank = IndexToRank(from);
@@ -99,7 +157,7 @@ namespace BlazorStack.Controller
             {
                 if (square.File() == IndexToFile(from) && !square.Equals(holdingSquare))
                 {
-                    if (square.Piece.StartsWith(holdingSquare.Piece[0]) && ((toRank >= square.Rank() && fromRank < square.Rank()) || (toRank <= square.Rank() && fromRank > square.Rank())))
+                    if (square.Piece.StartsWith(Color) && ((toRank >= square.Rank() && fromRank < square.Rank()) || (toRank <= square.Rank() && fromRank > square.Rank())))
                     {
                         return true;
                     }
@@ -111,23 +169,23 @@ namespace BlazorStack.Controller
             }
             return false;
         }
-        private bool CheckBishopMove(int from, int to)
+        private bool CheckBishopMove(string Color,int from, int to)
         {
             int distance = Math.Abs(from - to);
-            if (distance % 7 == 0 && !InterceptedByPieceOnDiagonall(from,to,7))
+            if (distance % 7 == 0 && !InterceptedByPieceOnDiagonall(Color, from,to,7))
                 return true;
-            if (distance % 9 == 0 && !InterceptedByPieceOnDiagonall(from,to,9))
+            if (distance % 9 == 0 && !InterceptedByPieceOnDiagonall(Color, from,to,9))
                 return true;
             
             return false;
         }
-        private bool InterceptedByPieceOnDiagonall(int from,int to,int requiredDistance)
+        private bool InterceptedByPieceOnDiagonall(string Color,int from,int to,int requiredDistance)
         {
             foreach (Square square in Squares)
             {
                 if(Math.Abs(square.Index() - from) % requiredDistance == 0 && !square.Equals(holdingSquare))
                 {
-                    if (square.Piece.StartsWith(holdingSquare.Piece[0]) && ((to >= square.Index() && from < square.Index()) || (to <= square.Index() && from > square.Index())))
+                    if (square.Piece.StartsWith(Color) && ((to >= square.Index() && from < square.Index()) || (to <= square.Index() && from > square.Index())))
                     {
                         return true;
                     }
@@ -140,12 +198,24 @@ namespace BlazorStack.Controller
             
             return false;
         }
-        private bool CheckQueenMove(int from, int to)
+        private bool CheckQueenMove(string Color,int from, int to)
         {
-            return (CheckRookMove(from, to) || CheckBishopMove(from, to));
+            return (CheckRookMove(Color,from, to) || CheckBishopMove(Color,from, to));
         }
-        private bool CheckKingMove(int from, int to)
+        private bool CheckKingMove(string Color,int from, int to)
         {
+            string toPiece = Squares[to - 1].Piece;
+            Squares[to - 1].Piece = Squares[from - 1].Piece;
+            Squares[from - 1].Piece = "nn";
+            if (IsInCheck(Color))
+            {
+                Squares[from - 1].Piece = Squares[to - 1].Piece;
+                Squares[to - 1].Piece = toPiece;
+                return false;
+            }
+            Squares[from - 1].Piece = Squares[to - 1].Piece;
+            Squares[to - 1].Piece = toPiece;
+
             int distance = Math.Abs(to - from);
             if (distance == 1 || (distance > 6 && distance < 10))
                 return true;
@@ -187,7 +257,7 @@ namespace BlazorStack.Controller
             if (to - from == 8 || (to - from == 16 && IndexToRank(from) == 1) && IsSquareFree(from + 8))
                 return true;
             //capture a piece
-            if (targetSquare.Piece.StartsWith("w") && (to - from == 7 || to - from == 9))
+            if (Squares[to - 1].Piece.StartsWith("w") && (to - from == 7 || to - from == 9))
                 return true;
             //en passant
             return false;
@@ -203,7 +273,7 @@ namespace BlazorStack.Controller
             if (to - from == -8 || (to - from == -16 && IndexToRank(from) == 6 && IsSquareFree(from - 8)))
                 return true;
             //capture a piece
-            if (targetSquare.Piece.StartsWith("b") && (to - from == -7 || to - from == -9))
+            if (Squares[to - 1].Piece.StartsWith("b")  && (to - from == -7 || to - from == -9))
                 return true;
             //en passant
             return false;

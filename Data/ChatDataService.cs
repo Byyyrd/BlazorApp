@@ -8,6 +8,7 @@ namespace BlazorStack.Data
     {
         private string connectionString = "Data Source = DESKTOP-UKI1896\\SQLEXPRESS; Integrated Security = True; Connect Timeout = 30; Encrypt = False; Trust Server Certificate = False; Application Intent = ReadWrite; Multi Subnet Failover = False";
         private StringBuilder ChatLog = new StringBuilder();
+        object _myLockToken = new object();
         private string lastLine = "";
         public Task<string> GetChatAsync()
         {
@@ -20,9 +21,8 @@ namespace BlazorStack.Data
         }
         public void SendMessage(string? message)
         {
-            if (message == null || message == "")
-                return;
-            InsertData(message);
+            if (message != null && message != "")
+                InsertData(message);
         }
         private void ReadData()
         {
@@ -32,16 +32,20 @@ namespace BlazorStack.Data
             string sql = "USE [julibank] SELECT * FROM Chat";
             command = new SqlCommand(sql, cnn);
             SqlDataReader reader = command.ExecuteReader();
-            while (reader.Read())
+            lock (_myLockToken)
             {
-                if(!ChatLog.ToString().Contains(reader.GetString(1) + "   " + reader.GetString(2) + "\n"))
+
+                while (reader.Read())
                 {
-                    lastLine = reader.GetString(1) + "   " + reader.GetString(2) + "\n";
-                    ChatLog.AppendLine(reader.GetString(1) +"   "+ reader.GetString(2) + "\n");
+                    if (!ChatLog.ToString().Contains(reader.GetString(1) + "   " + reader.GetString(2) + "\n"))
+                    {
+                        lastLine = reader.GetString(1) + "   " + reader.GetString(2) + "\n";
+                        ChatLog.AppendLine(reader.GetString(1) + "   " + reader.GetString(2) + "\n");
+                    }
                 }
+                if (lastLine != "")
+                    ChatLog.Replace(lastLine + "\r\n", "");
             }
-            if(lastLine != "")
-                ChatLog.Replace(lastLine + "\r\n", "");
             cnn.Close();
         }
         private void InsertData(string message)

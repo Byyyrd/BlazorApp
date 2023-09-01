@@ -32,7 +32,24 @@
         <input @bind="To" />
     </label>
     <button class="btn btn-primary" @onclick="insertData">Insert Data</button>
+    @*@if (cc != null)
+    {
+        @if (cc.IsInCheck("b"))
+        {
+            Console.WriteLine("Black in Check");
+
+        <h1>Black In Check</h1>
+        }
+        @if (cc.IsInCheck("w"))
+        {
+            Console.WriteLine("White in Check");
+
+        <text>White In Check</text>
+        }
+
+    }*@
 </p>
+
 
 @if (squares == null)
 {
