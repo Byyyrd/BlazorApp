@@ -19,12 +19,12 @@
     </p>
 
 }
-<h1>Schach.Kolhoff : @Word
-<button class="btn btn-primary" @onclick="readData">Querry Data</button>
-<button class="btn btn-primary" @onclick="setup">ResetBoard</button>
+<h1 style="width: max-content">Schach.Kolhoff : @Word
+    <button class="btn btn-primary" @onclick="readData">Querry Data</button>
+    <button class="btn btn-primary" @onclick="setup">ResetBoard</button>
     <button class="btn btn-primary" @onclick="changeLayout">Change Layout</button>
 </h1>
-<p>
+<p style="width: max-content">
     <label>
         From
         <input @bind="From" />
@@ -32,22 +32,18 @@
         <input @bind="To" />
     </label>
     <button class="btn btn-primary" @onclick="insertData">Insert Data</button>
-    @*@if (cc != null)
+    @if (cc != null)
     {
-        @if (cc.IsInCheck("b"))
+        @if (cc.BlackInCheck)
         {
-            Console.WriteLine("Black in Check");
-
-        <h1>Black In Check</h1>
+            <text>Black In Check</text>
         }
-        @if (cc.IsInCheck("w"))
+        @if (cc.WhiteInCheck)
         {
-            Console.WriteLine("White in Check");
-
-        <text>White In Check</text>
+            <text>White In Check</text>
         }
 
-    }*@
+    }
 </p>
 
 
@@ -79,7 +75,7 @@ else
         </tbody>
     </table>*/
     <br />
-    <svg width="700" height="@DataService.SquareSize*8" style="position: absolute; z-index: 2;"
+    <svg width="650" height="650" style="position: absolute; z-index: 2;"
      @onpointerdown=PointerDown @onpointerdown:preventDefault
      @onpointerup=PointerUp @onpointerup:preventDefault
      @onpointermove=PointerMove @onpointermove:preventDefault 

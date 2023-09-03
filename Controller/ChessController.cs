@@ -1,5 +1,6 @@
 ﻿using BlazorStack.Data;
 using Microsoft.AspNetCore.Components.Web;
+using System.Drawing;
 
 namespace BlazorStack.Controller
 {
@@ -10,6 +11,9 @@ namespace BlazorStack.Controller
         public Square[] Squares = new Square[64];
         private bool canRochadeW,canRochadeB;
         public BoardDataService Ds { get; set; }
+        public bool BlackInCheck;
+        public bool WhiteInCheck;
+        private int lastDoublePawnMoveTo;
         public ChessController(BoardDataService boardDataService)
         {
             Ds = boardDataService;
@@ -18,77 +22,109 @@ namespace BlazorStack.Controller
         {
             if (holdingSquare != null && targetSquare != null)
             {
+                //Save essential values
                 int indexFrom = holdingSquare.Index();
                 int indexTo = targetSquare.Index();
+                string Color = Piece[0].ToString();
+                
                 CheckRochade(Squares);
+
+                //Save wether each player could rochade
                 bool couldRochadeB = canRochadeB;
                 bool couldRochadeW = canRochadeW;
-                if (IsInCheck(Piece[0].ToString()))
+                //Is not viableMove if player in Check and the Move wouldn't move Out or between checking piece reach
+                bool viableMove;
+                if (IsInCheck(Color) && !MovePreventsCheck(Color,indexFrom,indexTo))
                 {
-                    canRochadeB = false;
-                    canRochadeW = false;
-                    string toPiece = Squares[indexTo - 1].Piece;
-                    Squares[indexTo - 1].Piece = Squares[indexFrom - 1].Piece;
-                    Squares[indexFrom - 1].Piece = "nn";
-                    if (IsInCheck(Piece[0].ToString()))
-                    {
-                        Squares[indexFrom - 1].Piece = Squares[indexTo - 1].Piece;
-                        Squares[indexTo - 1].Piece = toPiece;
-                        canRochadeB = couldRochadeB;
-                        canRochadeW = couldRochadeW;
-                        return false;
-                    }
-                    Squares[indexFrom - 1].Piece = Squares[indexTo - 1].Piece;
-                    Squares[indexTo - 1].Piece = toPiece;
+                     viableMove = false;
                 }
-                bool viableMove = IsViableMoveByIndex(Piece, indexFrom, indexTo);
+                else
+                {
+                    //If Move is viable with check Rules or Player not in check, check wether move is inside piece move rules
+                    //If Player is in Check Rochade is not viable
+                    viableMove = IsViableMoveByIndex(Piece, indexFrom, indexTo);
+                    if(viableMove && (indexTo != lastDoublePawnMoveTo || !(IndexToRank(indexFrom) == 1 || IndexToRank(indexFrom) == 6)))
+                        lastDoublePawnMoveTo = -1;
+                }
                 canRochadeB = couldRochadeB;
                 canRochadeW = couldRochadeW;
+                
                 return viableMove;
             }
 
             return false;
         }
+        /// <summary> Method <c>MovePreventsCheck</c> Checks if a move prevents Check</summary>
+        /// <returns> A bool representing wether Move prevents Check</returns>
+        private bool MovePreventsCheck(string Color, int indexFrom, int indexTo)
+        {
+            //Remember the piece that is on the targeted square so you can put it back after simulating the Move
+            string toPiece = Squares[indexTo - 1].Piece;
+            //Exclude Rochade as a viable move when in Check
+            canRochadeB = false;
+            canRochadeW = false;
+            //Simulate making the move and check wether the Piece is in check after Move(preventsCheck)
+            Squares[indexTo - 1].Piece = Squares[indexFrom - 1].Piece;
+            Squares[indexFrom - 1].Piece = "nn";
+            bool preventsCheck = !IsInCheck(Color);
+            Squares[indexFrom - 1].Piece = Squares[indexTo - 1].Piece;
+            Squares[indexTo - 1].Piece = toPiece;
+
+            return preventsCheck;
+        }
         private bool IsViableMoveByIndex(string Piece, int indexFrom,int indexTo)
         {
+            //Checks which piece the given one is and returns if given Move is viable for it
             if (Piece.Contains("knight")) { return CheckKnightMove(indexFrom, indexTo); }
-            if (Piece.Contains("rook")) { return CheckRookMove(Piece[0].ToString(), indexFrom, indexTo); }
+            if (Piece.Contains("rook"))   { return CheckRookMove(Piece[0].ToString(), indexFrom, indexTo); }
             if (Piece.Contains("bishop")) { return CheckBishopMove(Piece[0].ToString(), indexFrom, indexTo); }
-            if (Piece.Contains("queen")) { return CheckQueenMove(Piece[0].ToString(), indexFrom, indexTo); }
-            if (Piece.Contains("king")) { return CheckKingMove(Piece[0].ToString(),indexFrom, indexTo); }
-            if (Piece.Contains("bpawn")) { return CheckBlackPawnMove(indexFrom, indexTo); }
-            if (Piece.Contains("wpawn")) { return CheckWhitePawnMove(indexFrom, indexTo); }
-
+            if (Piece.Contains("queen"))  { return CheckQueenMove(Piece[0].ToString(), indexFrom, indexTo); }
+            if (Piece.Contains("king"))   { return CheckKingMove(Piece[0].ToString(),indexFrom, indexTo); }
+            if (Piece.Contains("bpawn"))  { return CheckBlackPawnMove(indexFrom, indexTo); }
+            if (Piece.Contains("wpawn"))  { return CheckWhitePawnMove(indexFrom, indexTo); }
             return false;
         }
+        /// <summary>
+        /// King of given <paramref name="Color"/> in Check 
+        /// </summary>
+        /// <param name="Color">Color for which to search for check</param>
+        /// <returns>Is King of <paramref name="Color"/> in Check</returns>
         public bool IsInCheck(string Color)
         {
             if (Color == "n") return false;
-            int kingPosition = 0;
             string enemyColor = Color == "b" ? "w" : "b";
+            int kingPosition = FindKingIndex(Color);
+            return AnyViableMovesToPosition(enemyColor, kingPosition);
+        }
+        /// <summary>
+        /// Checks whether any Piece of given <paramref name="Color"/> can move to <paramref name="Position"/>
+        /// </summary>
+        /// <param name="Color"> Color for moving Pieces </param>
+        /// <param name="Position"> Position to move to </param>
+        /// <returns>If one viable move was found</returns>
+        private bool AnyViableMovesToPosition(string Color,int Position)
+        {
+            if (Position < 1 || Position > 64)
+                return false;
+            foreach (Square square in Squares)
+            {
+                if (square.Piece.StartsWith(Color) && IsViableMoveByIndex(square.Piece, square.Index(), Position))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        private int FindKingIndex(string Color)
+        {
             foreach (Square square in Squares)
             {
                 if (square.Piece.Contains($"{Color}king"))
                 {
-                    kingPosition = square.Index();
+                    return square.Index();
                 }
             }
-            if (kingPosition != 0)
-            {
-                foreach (Square square in Squares)
-                {
-                    if (square.Piece.StartsWith(enemyColor))
-                    {
-                        if(IsViableMoveByIndex(square.Piece, square.Index(), kingPosition)) {
-                            Console.WriteLine(square.Piece);
-                            return true; 
-                        }
-                    }
-                }
-            }
-            
-
-            return false;
+            return -1;
         }
         private void CheckRochade(Square[] squares)
         {
@@ -224,13 +260,13 @@ namespace BlazorStack.Controller
             {
                 if (to == 63 && Squares[61].Piece.Equals("nn"))
                 {
-                    Ds.MoveDataByIndex(64, 62);
+                    Ds.MovePieceByIndex(64, 62);
                     return true;
 
                 }
                 else if(to == 59 && Squares[59].Piece.Equals("nn") && Squares[57].Piece.Equals("nn"))
                 {
-                    Ds.MoveDataByIndex(57, 60);
+                    Ds.MovePieceByIndex(57, 60);
                     return true;
 
                 }
@@ -239,12 +275,12 @@ namespace BlazorStack.Controller
             {
                 if (to == 7 && Squares[5].Piece.Equals("nn"))
                 {
-                    Ds.MoveDataByIndex(8, 6);
+                    Ds.MovePieceByIndex(8, 6);
                     return true;
                 }
                 else if(to == 3 && Squares[1].Piece.Equals("nn") && Squares[3].Piece.Equals("nn"))
                 {
-                    Ds.MoveDataByIndex(1, 4);
+                    Ds.MovePieceByIndex(1, 4);
                     return true;
                 }
                 
@@ -254,12 +290,30 @@ namespace BlazorStack.Controller
         private bool CheckBlackPawnMove(int from, int to)
         {
             //normal moves
-            if (to - from == 8 || (to - from == 16 && IndexToRank(from) == 1) && IsSquareFree(from + 8))
+            if (to - from == 8 && IsSquareFree(from + 8))
                 return true;
             //capture a piece
             if (Squares[to - 1].Piece.StartsWith("w") && (to - from == 7 || to - from == 9))
                 return true;
+            //Double move from starting pos
+            if (to - from == 16 && IndexToRank(from) == 1 && IsSquareFree(from + 8))
+            {
+                lastDoublePawnMoveTo = to;
+                return true;
+            }
             //en passant
+            if ((lastDoublePawnMoveTo == from - 1 && to == from + 7 && !Squares[from - 2].Piece.StartsWith("b")))
+            {
+                Ds.RemovePiece(from - 1);
+                return true;
+            }
+            if(lastDoublePawnMoveTo == from + 1 && to == from + 9 && !Squares[from].Piece.StartsWith("b"))
+            {
+                Ds.RemovePiece(from + 1);
+                return true;
+            }
+
+
             return false;
         }
         private bool IsSquareFree(int index)
@@ -270,12 +324,28 @@ namespace BlazorStack.Controller
         private bool CheckWhitePawnMove(int from, int to)
         {
             //normal moves
-            if (to - from == -8 || (to - from == -16 && IndexToRank(from) == 6 && IsSquareFree(from - 8)))
+            if (to - from == -8 && IsSquareFree(from - 8))
                 return true;
             //capture a piece
             if (Squares[to - 1].Piece.StartsWith("b")  && (to - from == -7 || to - from == -9))
                 return true;
+            //Double move from starting pos
+            if(to - from == -16 && IndexToRank(from) == 6 && IsSquareFree(from - 8)){
+                lastDoublePawnMoveTo = to;
+                return true;
+            }
             //en passant
+            if ((lastDoublePawnMoveTo == from - 1 && to == from - 9 && !Squares[from - 2].Piece.StartsWith("w")))
+            {
+                Ds.RemovePiece(from - 1);
+                return true;
+            } 
+                
+            if(lastDoublePawnMoveTo == from + 1 && to == from - 7 && !Squares[from].Piece.StartsWith("w")) {
+                Ds.RemovePiece(from + 1);
+                return true;
+            }
+
             return false;
         }
         private bool inRectangle(int x, int y, int width, int height, int pX, int pY)
@@ -305,7 +375,7 @@ namespace BlazorStack.Controller
                         int targetSqareIndex = targetSquare.Index();
                         if (holdingSquare != targetSquare && !targetSquare.Piece.StartsWith(holdingSquare.Piece[0]) && IsViableMove(holdingSquare.Piece))
                         {
-                            Ds.MoveDataByIndex(holdingSquareIndex, targetSqareIndex);
+                            Ds.MovePieceByIndex(holdingSquareIndex, targetSqareIndex);
                         }
 
                         holdingSquare = null;

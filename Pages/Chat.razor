@@ -4,13 +4,14 @@
 @inject ChatDataService ChatData
 
 <h3>Chat</h3>
-<div style="display: inline-block;height:600px;max-width:800px;position: relative;left: @positionX;flex-direction: column-reverse;overflow-y:scroll;overflow-wrap:break-word;display: flex;">
+<div style="display: inline-block;height:600px;max-width:800px;position: relative;top: -40px;left: @positionX;flex-direction: column-reverse;overflow-y:scroll;overflow-wrap:break-word;display: flex;">
 	<p style="white-space: pre-wrap;width: 100%">@_chatLog <span style="color:green">@lastLine </span> </p>
 </div>
 
-<div style="position: relative;left: @positionX">
+<div style="position: relative;left: @positionX;top: -40px;width: max-content">
     <input @bind="Message" @bind:event ="oninput"  @onkeypress ="SendMessage"/>
 	@* <button class="btn btn-primary" @onclick="SendMessage">Send Message</button> *@
+    <button class="btn btn-primary" @onclick="DeleteLog">Delete Log</button>
 </div>
 
 
@@ -63,6 +64,12 @@
             Message = "";
         }
         updateData();
+    }
+    private void DeleteLog()
+    {
+        ChatData.DeleteLog();
+        updateData();
+        _chatLog = "";
     }
 
 }

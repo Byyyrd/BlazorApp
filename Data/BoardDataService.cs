@@ -1,7 +1,11 @@
 ﻿using BlazorStack.Controller;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Data.SqlClient;
+using System.Drawing;
+using System.IO.Pipelines;
+using System.Reflection.PortableExecutable;
 using System.Text;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace BlazorStack.Data
 {
@@ -30,7 +34,7 @@ namespace BlazorStack.Data
         }
         public void MovePiece(string From, string To)
         {
-            MoveDataByString(From, To);
+            MovePieceByString(From, To);
         }
         
 
@@ -72,6 +76,24 @@ namespace BlazorStack.Data
             StringBuilder sql = BuildBoardResetString();
             command = new SqlCommand(sql.ToString(), cnn);
             SqlDataReader reader = command.ExecuteReader();
+            cnn.Close();
+        }
+        public void MoveData(string color,string piece,int indexFrom,int indexTo)
+        {
+            SqlConnection cnn = new SqlConnection(connectionString);
+            cnn.Open();
+            string sql = $"USE [julibank] UPDATE Board SET Color = '{color}',Piece = '{piece}' WHERE ID = {indexTo} UPDATE Board SET Color = 'n',Piece = 'n' WHERE ID = {indexFrom}";
+            SqlCommand command = new SqlCommand(sql, cnn);
+            command.ExecuteReader();
+            cnn.Close();
+        }
+        public void RemovePiece(int indexFrom)
+        {
+            SqlConnection cnn = new SqlConnection(connectionString);
+            cnn.Open();
+            string sql = $"USE [julibank] UPDATE Board SET Color = 'n',Piece = 'n' WHERE ID = {indexFrom}";
+            SqlCommand command = new SqlCommand(sql, cnn);
+            command.ExecuteReader();
             cnn.Close();
         }
         private void Fill()
@@ -125,15 +147,15 @@ namespace BlazorStack.Data
             //make a8 a index of 1
             return 64 - ((int)Char.GetNumericValue(chars[1]) * 8) + index;
         }
-        private void MoveDataByString(string from,string to)
+        private void MovePieceByString(string from,string to)
         {
             int indexFrom = ChessPositionToIndex(from);
             int indexTo   = ChessPositionToIndex(to);
 
-            MoveDataByIndex(indexFrom, indexTo);
+            MovePieceByIndex(indexFrom, indexTo);
             
         }
-        public void MoveDataByIndex(int indexFrom, int indexTo)
+        public void MovePieceByIndex(int indexFrom, int indexTo)
         {
             string piece = "n";
             string color = "n";
@@ -155,21 +177,15 @@ namespace BlazorStack.Data
             cnn.Close();
             if (!color.Equals("n") && !piece.Equals("n"))
             {
-                cnn = new SqlConnection(connectionString);
-                cnn.Open();
-                sql = $"USE [julibank] UPDATE Board SET Color = '{color}',Piece = '{piece}' WHERE ID = {indexTo} UPDATE Board SET Color = 'n',Piece = 'n' WHERE ID = {indexFrom}";
-                command = new SqlCommand(sql, cnn);
-                reader = command.ExecuteReader();
-                cnn.Close();
+                MoveData(color, piece, indexFrom, indexTo);
             }
         }
         private void UpdateData(string Piece, int ID)
         {
             SqlConnection cnn = new SqlConnection(connectionString);
             cnn.Open();
-            SqlCommand command;
-            String sql = $"USE [julibank] UPDATE Board SET Piece = '{Piece}' WHERE ID = {ID}";
-            command = new SqlCommand(sql, cnn);
+            string sql = $"USE [julibank] UPDATE Board SET Piece = '{Piece}' WHERE ID = {ID}";
+            SqlCommand command = new SqlCommand(sql, cnn);
             SqlDataReader reader = command.ExecuteReader();
             cnn.Close();
         }

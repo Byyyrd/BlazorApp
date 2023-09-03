@@ -24,6 +24,22 @@ namespace BlazorStack.Data
             if (message != null && message != "")
                 InsertData(message);
         }
+        public void DeleteLog()
+        {
+            ClearDatabase();
+        }
+        private void ClearDatabase()
+        {
+            ChatLog.Clear();
+            lastLine = "";
+            SqlConnection cnn = new SqlConnection(connectionString);
+            cnn.Open();
+            SqlCommand command;
+            string sql = "USE [julibank] DELETE FROM Chat";
+            command = new SqlCommand(sql, cnn);
+            command.ExecuteReader();
+            cnn.Close();
+        }
         private void ReadData()
         {
             SqlConnection cnn = new SqlConnection(connectionString);
