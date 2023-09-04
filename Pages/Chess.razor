@@ -20,7 +20,7 @@
 
 }
 <h1 style="width: max-content">Schach.Kolhoff : @Word
-    <button class="btn btn-primary" @onclick="readData">Querry Data</button>
+    <button class="btn btn-primary" @onclick="updateData">Querry Data</button>
     <button class="btn btn-primary" @onclick="setup">ResetBoard</button>
     <button class="btn btn-primary" @onclick="changeLayout">Change Layout</button>
 </h1>
@@ -32,18 +32,14 @@
         <input @bind="To" />
     </label>
     <button class="btn btn-primary" @onclick="insertData">Insert Data</button>
-    @if (cc != null)
-    {
-        @if (cc.BlackInCheck)
+        @if (WInCheckmate)
         {
-            <text>Black In Check</text>
+            <text>White is Checkmate</text>
         }
-        @if (cc.WhiteInCheck)
+        @if (BInCheckmate)
         {
-            <text>White In Check</text>
+            <text>Black is Checkmate</text>
         }
-
-    }
 </p>
 
 
@@ -155,6 +151,9 @@ else
     private string holdingPiece = "";
     private int mouseX;
     private int mouseY;
+    private bool WInCheckmate;
+    private bool BInCheckmate;
+
     public ChessController cc;
 
 
@@ -186,6 +185,8 @@ else
     {
         squares = await DataService.GetBoardAsync();
         cc.Squares = squares;
+        WInCheckmate = cc.IsCheckmate("w");
+        BInCheckmate = cc.IsCheckmate("b");
     }
     //Reset and get Board
     private async void setup()
@@ -200,11 +201,7 @@ else
     {
         DataService.MovePiece(From, To);
         squares = await DataService.GetBoardAsync();
-    }
-    //Read board data from database
-    private async void readData()
-    {
-        squares = await DataService.GetBoardAsync();
+        
     }
     Task PointerDown(PointerEventArgs e) { 
         cc.mouseDown(e);   
@@ -218,7 +215,7 @@ else
         {
             holdingPiece = "nn";
         }
-        readData();
+        updateData();
         return Task.CompletedTask;
     }
     Task PointerUp(PointerEventArgs e) {

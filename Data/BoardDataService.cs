@@ -145,7 +145,7 @@ namespace BlazorStack.Data
                 case 'h': index = 8;break;
             }
             //make a8 a index of 1
-            return 64 - ((int)Char.GetNumericValue(chars[1]) * 8) + index;
+            return 64 - ((int)char.GetNumericValue(chars[1]) * 8) + index;
         }
         private void MovePieceByString(string from,string to)
         {

@@ -1,5 +1,6 @@
 ﻿using BlazorStack.Data;
 using Microsoft.AspNetCore.Components.Web;
+using System.Collections;
 using System.Drawing;
 
 namespace BlazorStack.Controller
@@ -14,45 +15,76 @@ namespace BlazorStack.Controller
         public bool BlackInCheck;
         public bool WhiteInCheck;
         private int lastDoublePawnMoveTo;
+
+        private List<string> wCheckingPieces = new();
+        private List<string> bCheckingPieces = new();
+
         public ChessController(BoardDataService boardDataService)
         {
             Ds = boardDataService;
         }
-        public bool IsViableMove(string Piece)
+        public bool IsCheckmate(string Color)
         {
-            if (holdingSquare != null && targetSquare != null)
-            {
-                //Save essential values
-                int indexFrom = holdingSquare.Index();
-                int indexTo = targetSquare.Index();
-                string Color = Piece[0].ToString();
-                
-                CheckRochade(Squares);
+            //If not in Check cannot be checkmate
+            if (!IsInCheck(Color))
+                return false;
 
-                //Save wether each player could rochade
-                bool couldRochadeB = canRochadeB;
-                bool couldRochadeW = canRochadeW;
-                //Is not viableMove if player in Check and the Move wouldn't move Out or between checking piece reach
-                bool viableMove;
-                if (IsInCheck(Color) && !MovePreventsCheck(Color,indexFrom,indexTo))
+            //List moves around king and find king
+            int[] KingMoves = { -9,-8,-7,-1,1,7,8,9};
+            int KingIndex = FindKingIndex(Color);
+            //Check if King can escape
+            foreach (int moves in KingMoves)
+            {
+                if ((KingIndex + moves) < 64 && (KingIndex + moves) >= 0 && !Squares[KingIndex + moves -1].Piece.StartsWith(Color) && IsViableMove($"{Color}king",KingIndex, KingIndex + moves))
                 {
-                     viableMove = false;
+                    return false;
                 }
-                else
-                {
-                    //If Move is viable with check Rules or Player not in check, check wether move is inside piece move rules
-                    //If Player is in Check Rochade is not viable
-                    viableMove = IsViableMoveByIndex(Piece, indexFrom, indexTo);
-                    if(viableMove && (indexTo != lastDoublePawnMoveTo || !(IndexToRank(indexFrom) == 1 || IndexToRank(indexFrom) == 6)))
-                        lastDoublePawnMoveTo = -1;
-                }
-                canRochadeB = couldRochadeB;
-                canRochadeW = couldRochadeW;
-                
-                return viableMove;
             }
 
-            return false;
+            //Check if piece Can Caputre Checking Piece
+
+            //Check if piece can Move in between
+
+            //if all posibilites to prevent check are not possible checkmate is true
+            return true;
+        }
+        public bool IsViableMove(string Piece)
+        {
+            if (holdingSquare == null || targetSquare == null)
+                return false;
+            int indexFrom = holdingSquare.Index();
+            int indexTo = targetSquare.Index();
+            return IsViableMove(Piece,indexFrom,indexTo);
+        }
+        public bool IsViableMove(string Piece, int indexFrom, int indexTo)
+        {
+            //Get Color from piece
+            string Color = Piece[0].ToString();
+
+            CheckRochade(Squares);
+
+            //Save wether each player could rochade
+            bool couldRochadeB = canRochadeB;
+            bool couldRochadeW = canRochadeW;
+            
+            bool viableMove;
+
+
+            //If Move is viable with check Rules or Player not in check, check wether move is inside piece move rules
+            //If Player is in Check Rochade is not viable
+            viableMove = IsViableMoveByIndex(Piece, indexFrom, indexTo);
+            if (viableMove && (indexTo != lastDoublePawnMoveTo || !(IndexToRank(indexFrom) == 1 || IndexToRank(indexFrom) == 6)))
+                lastDoublePawnMoveTo = -1;
+
+            //If move is theoreticly viable check if player in Check and the Move wouldn't move Out or between checking piece reach
+            if (viableMove && IsInCheck(Color) && !MovePreventsCheck(Color, indexFrom, indexTo))
+            {
+                viableMove = false;
+            }
+            canRochadeB = couldRochadeB;
+            canRochadeW = couldRochadeW;
+            return viableMove;
+
         }
         /// <summary> Method <c>MovePreventsCheck</c> Checks if a move prevents Check</summary>
         /// <returns> A bool representing wether Move prevents Check</returns>
@@ -94,26 +126,34 @@ namespace BlazorStack.Controller
             if (Color == "n") return false;
             string enemyColor = Color == "b" ? "w" : "b";
             int kingPosition = FindKingIndex(Color);
-            return AnyViableMovesToPosition(enemyColor, kingPosition);
+            if (Color == "w")
+            {
+                wCheckingPieces = ViableMovesToPosition(enemyColor, kingPosition);
+                return wCheckingPieces.Count != 0;
+
+            }
+            bCheckingPieces = ViableMovesToPosition(enemyColor, kingPosition);
+            return bCheckingPieces.Count != 0;
         }
         /// <summary>
-        /// Checks whether any Piece of given <paramref name="Color"/> can move to <paramref name="Position"/>
+        /// Which Pieces of given <paramref name="Color"/> can move to <paramref name="Position"/>
         /// </summary>
         /// <param name="Color"> Color for moving Pieces </param>
         /// <param name="Position"> Position to move to </param>
-        /// <returns>If one viable move was found</returns>
-        private bool AnyViableMovesToPosition(string Color,int Position)
+        /// <returns>List of all Pieces that can move to position</returns>
+        private List<string> ViableMovesToPosition(string Color,int Position)
         {
+            List<string> pieces = new();
             if (Position < 1 || Position > 64)
-                return false;
+                return pieces;
             foreach (Square square in Squares)
             {
                 if (square.Piece.StartsWith(Color) && IsViableMoveByIndex(square.Piece, square.Index(), Position))
                 {
-                    return true;
+                    pieces.Add(square.Piece);
                 }
             }
-            return false;
+            return pieces;
         }
         private int FindKingIndex(string Color)
         {
